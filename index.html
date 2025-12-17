@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MMM Admin | Executive Command</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --primary: #00ff95; --dark: #020405; --accent: #1e293b; --text: #ffffff;
+            --glass: rgba(255, 255, 255, 0.03); --gold: #ffd700; --danger: #ff4757; --info: #00d2ff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; }
+        body { background: var(--dark); color: var(--text); min-height: 100vh; }
+
+        /* Auth Gate */
+        #login-overlay { position: fixed; inset: 0; background: var(--dark); z-index: 10000; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: var(--glass); padding: 40px; border-radius: 20px; border: 1px solid var(--primary); width: 400px; text-align: center; }
+        .login-box input { width: 100%; padding: 12px; margin: 10px 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 5px; }
+        
+        /* Dashboard */
+        #admin-content { display: none; }
+        nav { padding: 1rem 5%; background: rgba(0,0,0,0.9); border-bottom: 2px solid var(--primary); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        
+        .main-container { padding: 30px 5%; max-width: 1600px; margin: 0 auto; }
+        
+        /* Tactical Mission Cards */
+        .mission-log { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .mission-card { 
+            background: var(--glass); border: 1px solid rgba(255,255,255,0.1); 
+            border-radius: 12px; padding: 20px; display: grid; 
+            grid-template-columns: 1fr 1fr 1.5fr 1fr; gap: 20px; align-items: center;
+            transition: 0.3s;
+        }
+        .mission-card:hover { border-color: var(--primary); background: rgba(0, 255, 149, 0.02); }
+
+        .meta-group label { display: block; font-size: 0.6rem; opacity: 0.5; text-transform: uppercase; margin-bottom: 5px; }
+        .meta-group div { font-weight: 700; font-size: 0.9rem; }
+        
+        /* Executive Actions */
+        .action-hub { display: flex; gap: 10px; justify-content: flex-end; }
+        .exec-btn { 
+            padding: 8px 12px; border-radius: 4px; border: none; cursor: pointer; 
+            font-size: 0.65rem; font-weight: 900; text-transform: uppercase; transition: 0.2s;
+        }
+        .btn-refund { background: var(--gold); color: black; }
+        .btn-redo { background: var(--info); color: black; }
+        .btn-redirect { background: white; color: black; }
+        .btn-delete { background: var(--danger); color: white; }
+        .exec-btn:hover { transform: translateY(-2px); filter: brightness(1.2); }
+
+        /* Staff Assignment Badge */
+        .staff-badge { 
+            background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 20px;
+            font-size: 0.7rem; color: var(--primary); border: 1px solid var(--primary);
+        }
+
+        .status-pill { font-size: 0.6rem; padding: 2px 8px; border-radius: 10px; background: #333; }
+    </style>
+</head>
+<body>
+
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2 style="color:var(--primary)">EXECUTIVE ACCESS</h2>
+            <input type="email" id="email" placeholder="Admin Email">
+            <input type="password" id="pass" placeholder="Security Key">
+            <button onclick="handleLogin()" style="width:100%; padding:12px; background:var(--primary); border:none; font-weight:900; cursor:pointer; margin-top:10px;">AUTHORIZE</button>
+        </div>
+    </div>
+
+    <div id="admin-content">
+        <nav>
+            <img src="https://i.postimg.cc/c4r1C82M/MMM-Platforms-logo.jpg" style="height:40px;">
+            <h1 style="font-size: 1rem; letter-spacing: 3px;">EXECUTIVE GOVERNANCE PORTAL</h1>
+            <button onclick="handleLogout()" style="background:transparent; border:1px solid var(--danger); color:var(--danger); padding:5px 15px; cursor:pointer; font-weight:700;">LOGOUT</button>
+        </nav>
+
+        <div class="main-container">
+            <h3 style="margin-bottom: 20px; color: var(--primary);">MASTER MISSION LOG & OVERSIGHT</h3>
+            
+            <div class="mission-log" id="master-log">
+                </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA42AEfO6mGGSTKa-2QcR9hFEj3xBhRuoc",
+            authDomain: "live-order-board-ab721.firebaseapp.com",
+            projectId: "live-order-board-ab721",
+            storageBucket: "live-order-board-ab721.firebasestorage.app",
+            messagingSenderId: "157405136208",
+            appId: "1:157405136208:web:074c852dbae6a46a305855"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Auth Logic
+        window.handleLogin = () => signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('pass').value).catch(e => alert(e.message));
+        window.handleLogout = () => signOut(auth);
+        
+        onAuthStateChanged(auth, user => {
+            if(user) {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('admin-content').style.display = 'block';
+                syncMissions();
+            } else {
+                document.getElementById('login-overlay').style.display = 'flex';
+                document.getElementById('admin-content').style.display = 'none';
+            }
+        });
+
+        // Data Logic
+        function syncMissions() {
+            onSnapshot(collection(db, "orders"), (snap) => {
+                const log = document.getElementById('master-log');
+                log.innerHTML = '';
+                snap.forEach(d => {
+                    const m = d.data();
+                    const staffInitials = m.staffAssigned || "UNASSIGNED";
+                    
+                    log.innerHTML += `
+                    <div class="mission-card">
+                        <div class="meta-group">
+                            <label>Mission ID</label>
+                            <div style="color:var(--primary)">${m.orderNumber}</div>
+                            <span class="status-pill">${m.status}</span>
+                        </div>
+                        
+                        <div class="meta-group">
+                            <label>Responsible Staff</label>
+                            <div class="staff-badge">ID: ${staffInitials}</div>
+                        </div>
+
+                        <div class="meta-group">
+                            <label>Client & Service</label>
+                            <div>${m.client}</div>
+                            <small style="opacity:0.6">${m.service} (€${m.revenue})</small>
+                        </div>
+
+                        <div class="action-hub">
+                            <button class="exec-btn btn-refund" onclick="execAction('${d.id}', 'REFUNDED')">Refund</button>
+                            <button class="exec-btn btn-redo" onclick="execAction('${d.id}', 'REDO-SCHEDULED')">Redo</button>
+                            <button class="exec-btn btn-redirect" onclick="redirectTask('${d.id}')">Redirect</button>
+                            <button class="exec-btn btn-delete" onclick="deleteMission('${d.id}')">Delete</button>
+                        </div>
+                    </div>`;
+                });
+            });
+        }
+
+        // Executive Command Functions
+        window.execAction = async (id, status) => {
+            if(confirm(`Execute ${status} command for this mission?`)) {
+                await updateDoc(doc(db, "orders", id), { status: status });
+                alert("Executive Order Processed.");
+            }
+        };
+
+        window.redirectTask = async (id) => {
+            const newStaff = prompt("Enter ID of Executive/Staff to redirect this mission to:");
+            if(newStaff) {
+                await updateDoc(doc(db, "orders", id), { 
+                    staffAssigned: newStaff,
+                    status: "REDIRECTED/PRIORITY" 
+                });
+                alert("Mission Redirected to " + newStaff);
+            }
+        };
+
+        window.deleteMission = async (id) => {
+            if(confirm("PERMANENT DELETE: This will remove all record of this mission. Proceed?")) {
+                await deleteDoc(doc(db, "orders", id));
+            }
+        };
+
+    </script>
+</body>
+</html>
